@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>AeroQueue – Smart Boarding</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+            rel="stylesheet">
+        <link rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css">
+        <link rel="stylesheet" href="styles.css">
+        <script src="flights.js" defer></script>
+        <script src="app.js" defer></script>
+    </head>
+    <body class="light-theme">
+        <!-- Header -->
+        <header>
+            <div class="header-left">
+                <svg class="logo" width="220" height="50" viewBox="0 0 220 50">
+                    <defs>
+                        <lineargradient id="logoGradient" x1="0%" y1="0%"
+                            x2="100%" y2="100%">
+                            <stop offset="0%"
+                                style="stop-color:#0F62FE;stop-opacity:1" />
+                            <stop offset="100%"
+                                style="stop-color:#4589FF;stop-opacity:1" />
+                        </lineargradient>
+                        <filter id="glow">
+                            <fegaussianblur stdDeviation="2"
+                                result="coloredBlur" />
+                            <femerge>
+                                <femergenode in="coloredBlur" />
+                                <femergenode in="SourceGraphic" />
+                            </femerge>
+                        </filter>
+                    </defs>
+                    <!-- Stylized plane icon -->
+                    <path d="M15 15 L35 15 L30 25 L25 35 L20 25 Z"
+                        fill="url(#logoGradient)" filter="url(#glow)" />
+                    <circle cx="25" cy="20" r="2" fill="#fff" opacity="0.8" />
+                    <!-- Text -->
+                    <text x="45" y="32" font-family="Inter" font-size="26"
+                        font-weight="800"
+                        fill="url(#logoGradient)">AeroQueue</text>
+                    <text x="46" y="42" font-family="Inter" font-size="9"
+                        font-weight="500" fill="#697077"
+                        letter-spacing="2">SMART BOARDING SYSTEM</text>
+                </svg>
+                <div class="airport-badge">
+                    <i class="ri-map-pin-line"></i>
+                    <span>Hyderabad (HYD)</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div id="live-time" class="live-time" aria-live="polite">
+                    <i class="ri-time-line"></i>
+                    <span id="time-display"></span>
+                </div>
+                <button id="theme-toggle" class="theme-toggle"
+                    aria-label="Toggle dark mode">
+                    <i class="ri-moon-line"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Search & Filter Controls -->
+        <div class="controls-section">
+            <div class="search-wrapper">
+                <i class="ri-search-line"></i>
+                <input
+                    type="text"
+                    id="search-input"
+                    placeholder="Search by flight number, destination, or airline..."
+                    class="search-input"
+                    aria-label="Search flights" />
+            </div>
+            <div class="filter-controls">
+                <label for="sort-select" class="sr-only">Sort flights by</label>
+                <select id="sort-select" class="sort-select">
+                    <option value="time">Sort by Time</option>
+                    <option value="gate">Sort by Gate</option>
+                    <option value="status">Sort by Status</option>
+                    <option value="destination">Sort by Destination</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div role="tablist" class="tab-container">
+            <button id="tab-domestic" role="tab" aria-selected="true"
+                class="tab-button active">
+                <i class="ri-flight-takeoff-line"></i>
+                Domestic Flights
+            </button>
+            <button id="tab-international" role="tab" aria-selected="false"
+                class="tab-button">
+                <i class="ri-earth-line"></i>
+                International Flights
+            </button>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="main-dashboard" class="main-dashboard"></div>
+
+        <!-- Detailed Flight View -->
+        <div id="flight-detail-view" class="flight-detail-view hidden"></div>
+
+        <!-- Information Modal -->
+        <div id="info-modal" role="dialog" aria-modal="true"
+            aria-labelledby="info-modal-title" class="info-modal-overlay hidden">
+            <div class="info-modal-content glass-effect">
+                <div class="info-modal-header">
+                    <i id="info-modal-icon" class="ri-information-line"></i>
+                    <h2 id="info-modal-title" class="info-modal-title">Information</h2>
+                </div>
+                <p id="info-modal-message" class="info-modal-message">
+                    This is an informational message.
+                </p>
+                <button id="info-modal-close" class="info-modal-btn">
+                    <i class="ri-check-line"></i>
+                    <span>OK</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Live Boarding Modal -->
+        <div id="boarding-modal" role="dialog" aria-modal="true"
+            aria-labelledby="modal-title" class="modal-overlay hidden">
+            <div class="modal-content glass-effect">
+                <div class="sr-only" id="live-announce"
+                    aria-live="assertive"></div>
+
+                <!-- Back Button (Supervisor Only) -->
+                <button id="back-from-boarding"
+                    class="back-from-boarding supervisor-only"
+                    aria-label="Close boarding interface">
+                    <i class="ri-arrow-left-line"></i>
+                </button>
+
+                <!-- View Toggle (Supervisor Only) -->
+                <button id="toggle-public-view"
+                    class="toggle-public-view supervisor-only"
+                    aria-label="Toggle public display mode"
+                    title="Toggle Public LED Display">
+                    <i class="ri-tv-2-line"></i>
+                </button>
+
+                <div class="modal-header">
+                    <h2 id="modal-title" class="modal-title">
+                        <i class="ri-radio-button-line pulse-icon"></i>
+                        LIVE BOARDING
+                    </h2>
+                    <div id="system-status" class="system-status"></div>
+                </div>
+
+                <!-- PUBLIC LED DISPLAY STRUCTURE -->
+                <div class="public-led-container">
+                    <!-- Assistance Banner (Hidden by default) -->
+                    <div id="assistance-banner" class="assistance-banner hidden">
+                        <i class="ri-service-line"></i>
+                        <span>ASSISTANCE IN PROGRESS</span>
+                        <div class="assistance-pulse"></div>
+                    </div>
+
+                    <div class="public-left-panel">
+                        <div class="public-flight-status">
+                            <div class="public-status-badge">
+                                <i class="ri-radio-button-line pulse-icon"></i>
+                                NOW BOARDING
+                            </div>
+                            <div class="public-flight-info">
+                                <div class="public-flight-number"
+                                    id="public-flight-number">—</div>
+                                <div class="public-destination"
+                                    id="public-destination">—</div>
+                                <div class="public-gate" id="public-gate">
+                                    <i class="ri-door-open-line"></i>
+                                    <span>GATE —</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="public-right-panel">
+                        <div class="public-now-calling">
+                            <div class="public-calling-label">NOW CALLING</div>
+                            <div class="public-passenger-name"
+                                id="public-now-calling-name">—</div>
+                            <div class="public-passenger-seat"
+                                id="public-now-calling-seat">SEAT —</div>
+                        </div>
+                        <div class="public-up-next">
+                            <div class="public-next-label">UP NEXT</div>
+                            <div class="public-next-name"
+                                id="public-up-next-name">—</div>
+                            <div class="public-next-seat"
+                                id="public-up-next-seat">SEAT —</div>
+                        </div>
+
+                        <!-- Awaiting Assistance Panel (Hidden by default) -->
+                        <div id="awaiting-assistance-panel" class="awaiting-assistance-panel hidden">
+                            <div class="assistance-panel-header">
+                                <i class="ri-hand-heart-line"></i>
+                                <span>AWAITING ASSISTANCE</span>
+                            </div>
+                            <div class="assistance-passenger-info">
+                                <div class="assistance-passenger-name" id="assistance-passenger-name">—</div>
+                                <div class="assistance-passenger-seat" id="assistance-passenger-seat">SEAT —</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Public Progress Bar -->
+                    <div class="public-progress-container">
+                        <div class="public-progress-info">
+                            <span id="public-progress-text">BOARDED: 0/0</span>
+                            <span id="public-progress-percentage"
+                                class="public-percentage">0%</span>
+                        </div>
+                        <div class="public-progress-bar">
+                            <div id="public-progress-fill"
+                                class="public-progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUPERVISOR VIEW STRUCTURE -->
+                <div class="supervisor-container">
+                    <!-- Progress Section -->
+                    <div class="progress-section">
+                        <div class="progress-info">
+                            <span id="boarding-progress-text">Boarded:
+                                0/0</span>
+                            <span id="boarding-percentage">0%</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div id="boarding-progress-bar"
+                                class="progress-bar-fill"></div>
+                        </div>
+                    </div>
+
+                    <!-- Now Calling - Main Focus -->
+                    <div class="now-calling-section">
+                        <div class="now-calling-label">
+                            <i class="ri-user-voice-line"></i>
+                            NOW CALLING
+                        </div>
+                        <div class="passenger-info-main">
+                            <div class="passenger-name-large"
+                                id="now-calling-name">—</div>
+                            <div class="passenger-details">
+                                <div class="detail-item">
+                                    <i class="ri-layout-grid-line"></i>
+                                    <span id="now-calling-seat">—</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="ri-barcode-line"></i>
+                                    <span id="now-calling-id">—</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Mini Seat Visualization -->
+                        <div id="seat-visualization"
+                            class="seat-viz supervisor-only">
+                            <div class="plane-mini">
+                                <div class="plane-section business">
+                                    <span class="section-label">Business</span>
+                                    <div class="seats-mini"
+                                        id="business-seats"></div>
+                                </div>
+                                <div class="plane-section economy">
+                                    <span class="section-label">Economy</span>
+                                    <div class="seats-mini"
+                                        id="economy-seats"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Up Next -->
+                    <div class="up-next-section">
+                        <div class="up-next-label">
+                            <i class="ri-user-follow-line"></i>
+                            UP NEXT
+                        </div>
+                        <div class="passenger-info-secondary">
+                            <span class="passenger-name"
+                                id="up-next-name">—</span>
+                            <span class="passenger-seat"
+                                id="up-next-seat">—</span>
+                            <span class="passenger-id" id="up-next-id">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Area (replaces alert) -->
+                <div id="inline-notification"
+                    class="inline-notification hidden supervisor-only"></div>
+
+                <!-- Supervisor Controls -->
+                <div class="supervisor-toolkit supervisor-only">
+                    <button id="btn-pause" class="control-btn btn-pause">
+                        <i class="ri-pause-line"></i>
+                        <span>Pause</span>
+                    </button>
+                    <button id="btn-skip" class="control-btn btn-skip">
+                        <i class="ri-skip-forward-line"></i>
+                        <span>Skip</span>
+                    </button>
+                    <button id="btn-flag" class="control-btn btn-flag">
+                        <i class="ri-alert-line"></i>
+                        <span>Flag</span>
+                    </button>
+                    <button id="btn-public-assist" class="control-btn btn-public-assist">
+                        <i class="ri-customer-service-2-line"></i>
+                        <span>Public Assist</span>
+                    </button>
+                    <button id="btn-end" class="control-btn btn-end hidden">
+                        <i class="ri-arrow-left-line"></i>
+                        <span>Dashboard</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
